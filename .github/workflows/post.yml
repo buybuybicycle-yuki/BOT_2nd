@@ -1,0 +1,29 @@
+name: Scheduled X Post
+
+on:
+  schedule:
+    - cron: '0 0 9 * * 1-5'   # 月〜金 9:00 JST
+    - cron: '0 0 13 * * 1-5'  # 月〜金 13:00 JST
+  workflow_dispatch: {}  # 手動実行用
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run bot
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+        run: |
+          python bot.py
