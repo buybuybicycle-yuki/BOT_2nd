@@ -1,4 +1,4 @@
-# bot_v2_full.py（日本語ハッシュタグ対応版）
+# bot_v2_full_direct_link.py
 import os
 import random
 import time
@@ -64,9 +64,7 @@ api_v1 = tweepy.API(auth_v1)
 # 日本語ハッシュタグ生成
 # -------------------------
 def make_hashtags(title, max_tags=3):
-    # 記号や空白を除去
     clean = re.sub(r"[^\w\u4e00-\u9fff]", "", title)
-    # 長さ10文字以上なら切る
     if len(clean) > 20:
         clean = clean[:20]
     return " ".join([f"#{clean}"])
@@ -82,23 +80,16 @@ def compose_text(title, url):
     
     # 直接リンクを使う
     text = f"{random.choice(prefixes)}{template.format(title=title, url=url)} {hashtags}"
+    logging.info("Composed text for posting: %s", text.replace("\n"," "))  # ログにも直接URL
 
     if len(text) > 270:
         text = text[:267] + "..."
     return text
 
 # -------------------------
-# fetch_article_list の部分で相対 URL は絶対 URL に変換済み
-# -------------------------
-# 例：
-# if not link.startswith("http"):
-#     link = base_url.rstrip("/") + "/" + link.lstrip("/"
-
-# -------------------------
 # 投稿処理（v2 + v1.1 API併用）
 # -------------------------
 def post_to_twitter(text, image_url=None):
-    logging.info("Posting to Twitter: %s", text[:80].replace("\n"," ") + ("..." if len(text)>80 else ""))
     media_ids = None
     try:
         if image_url:
@@ -136,6 +127,9 @@ def fetch_article_list(base_url):
             link = a["href"]
             img = art.find("img")
             img_url = img["src"] if img else None
+            # 相対URLは絶対URLに変換
+            if not link.startswith("http"):
+                link = base_url.rstrip("/") + "/" + link.lstrip("/")
             candidates.append((title, link, img_url))
     return candidates
 
@@ -148,7 +142,6 @@ def main():
         logging.error("No articles found; aborting.")
         return
 
-    # 最新記事優先 60% / 過去記事掘り起こし 40%
     if random.random() < 0.6:
         chosen = articles[0]
         logging.info("Choosing latest article")
