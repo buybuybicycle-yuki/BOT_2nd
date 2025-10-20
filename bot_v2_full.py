@@ -1,4 +1,4 @@
-# bot_v2_full.py
+# bot_v2_full.py（日本語ハッシュタグ対応版）
 import os
 import random
 import time
@@ -61,19 +61,23 @@ auth_v1 = tweepy.OAuth1UserHandler(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_TOK
 api_v1 = tweepy.API(auth_v1)
 
 # -------------------------
-# 投稿文生成（自動ハッシュタグ付き）
+# 日本語ハッシュタグ生成
+# -------------------------
+def make_hashtags(title, max_tags=3):
+    # 記号や空白を除去
+    clean = re.sub(r"[^\w\u4e00-\u9fff]", "", title)
+    # 長さ10文字以上なら切る
+    if len(clean) > 20:
+        clean = clean[:20]
+    return " ".join([f"#{clean}"])
+
+# -------------------------
+# 投稿文生成
 # -------------------------
 def compose_text(title, url):
     template = random.choice(TEMPLATES_B) if random.random() < STYLE_B_WEIGHT else random.choice(TEMPLATES_A)
 
-    # ハッシュタグ生成
-    tags = []
-    words = re.findall(r'\w+', title)
-    for w in words:
-        if len(w) > 2 and len(tags) < 3:
-            tags.append(f"#{w}")
-    hashtags = " ".join(tags)
-
+    hashtags = make_hashtags(title)
     prefixes = ["", "🔔 ", "※", "✨ ", ""]
     text = f"{random.choice(prefixes)}{template.format(title=title, url=url)} {hashtags}"
 
@@ -82,7 +86,7 @@ def compose_text(title, url):
     return text
 
 # -------------------------
-# 投稿処理（v2 API + v1.1 API併用）
+# 投稿処理（v2 + v1.1 API併用）
 # -------------------------
 def post_to_twitter(text, image_url=None):
     logging.info("Posting to Twitter: %s", text[:80].replace("\n"," ") + ("..." if len(text)>80 else ""))
@@ -94,11 +98,9 @@ def post_to_twitter(text, image_url=None):
             tmp_path = "/tmp/temp_image.jpg"
             with open(tmp_path, "wb") as f:
                 f.write(r.content)
-            # v1.1 API で画像アップロード
             media = api_v1.media_upload(tmp_path)
             media_ids = [media.media_id]
 
-        # v2 API で投稿
         response = client_v2.create_tweet(text=text, media_ids=media_ids)
         logging.info("Posted successfully. Tweet ID: %s", response.data['id'])
     except Exception as e:
