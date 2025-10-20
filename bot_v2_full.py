@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 load_dotenv()
 
 # -------------------------
-# X / Twitter APIキー
+# APIキー
 # -------------------------
 API_KEY = os.getenv("API_KEY")
 API_SECRET = os.getenv("API_SECRET")
@@ -44,9 +44,9 @@ TEMPLATES_A = [
 ]
 
 # -------------------------
-# v2 API クライアント作成
+# v2 APIクライアント（テキスト投稿用）
 # -------------------------
-client = tweepy.Client(
+client_v2 = tweepy.Client(
     consumer_key=API_KEY,
     consumer_secret=API_SECRET,
     access_token=ACCESS_TOKEN,
@@ -55,12 +55,18 @@ client = tweepy.Client(
 )
 
 # -------------------------
+# v1.1 APIクライアント（画像アップロード用）
+# -------------------------
+auth_v1 = tweepy.OAuth1UserHandler(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET)
+api_v1 = tweepy.API(auth_v1)
+
+# -------------------------
 # 投稿文生成（自動ハッシュタグ付き）
 # -------------------------
 def compose_text(title, url):
     template = random.choice(TEMPLATES_B) if random.random() < STYLE_B_WEIGHT else random.choice(TEMPLATES_A)
 
-    # 自動ハッシュタグ生成（タイトルの単語から簡易生成）
+    # ハッシュタグ生成
     tags = []
     words = re.findall(r'\w+', title)
     for w in words:
@@ -71,34 +77,32 @@ def compose_text(title, url):
     prefixes = ["", "🔔 ", "※", "✨ ", ""]
     text = f"{random.choice(prefixes)}{template.format(title=title, url=url)} {hashtags}"
 
-    # 文字数調整
     if len(text) > 270:
         text = text[:267] + "..."
     return text
 
 # -------------------------
-# 投稿処理（テキスト + 画像 optional）
+# 投稿処理（v2 API + v1.1 API併用）
 # -------------------------
 def post_to_twitter(text, image_url=None):
-    logging.info("Posting to Twitter (v2 API): %s", text[:80].replace("\n"," ") + ("..." if len(text)>80 else ""))
+    logging.info("Posting to Twitter: %s", text[:80].replace("\n"," ") + ("..." if len(text)>80 else ""))
     media_ids = None
     try:
         if image_url:
-            # 画像ダウンロード
             r = requests.get(image_url, timeout=15)
             r.raise_for_status()
             tmp_path = "/tmp/temp_image.jpg"
             with open(tmp_path, "wb") as f:
                 f.write(r.content)
-            
-            # v2 API用にアップロード
-            media = client.upload_media(tmp_path)
+            # v1.1 API で画像アップロード
+            media = api_v1.media_upload(tmp_path)
             media_ids = [media.media_id]
 
-        response = client.create_tweet(text=text, media_ids=media_ids)
-        logging.info("Posted successfully (v2 API). Tweet ID: %s", response.data['id'])
+        # v2 API で投稿
+        response = client_v2.create_tweet(text=text, media_ids=media_ids)
+        logging.info("Posted successfully. Tweet ID: %s", response.data['id'])
     except Exception as e:
-        logging.error("Failed to post (v2 API): %s", e)
+        logging.error("Failed to post: %s", e)
 
 # -------------------------
 # 記事スクレイピング
@@ -114,7 +118,6 @@ def fetch_article_list(base_url):
 
     soup = BeautifulSoup(r.text, "html.parser")
     candidates = []
-
     for art in soup.find_all("article"):
         a = art.find("a", href=True)
         if a:
