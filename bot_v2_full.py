@@ -72,18 +72,27 @@ def make_hashtags(title, max_tags=3):
     return " ".join([f"#{clean}"])
 
 # -------------------------
-# 投稿文生成
+# 投稿文生成（直接リンク対応）
 # -------------------------
 def compose_text(title, url):
     template = random.choice(TEMPLATES_B) if random.random() < STYLE_B_WEIGHT else random.choice(TEMPLATES_A)
 
     hashtags = make_hashtags(title)
     prefixes = ["", "🔔 ", "※", "✨ ", ""]
+    
+    # 直接リンクを使う
     text = f"{random.choice(prefixes)}{template.format(title=title, url=url)} {hashtags}"
 
     if len(text) > 270:
         text = text[:267] + "..."
     return text
+
+# -------------------------
+# fetch_article_list の部分で相対 URL は絶対 URL に変換済み
+# -------------------------
+# 例：
+# if not link.startswith("http"):
+#     link = base_url.rstrip("/") + "/" + link.lstrip("/"
 
 # -------------------------
 # 投稿処理（v2 + v1.1 API併用）
