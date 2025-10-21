@@ -26,4 +26,4 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
         run: |
-          python bot_v2_full.py
+          python bot_v5_ogimage_humanlike.py
